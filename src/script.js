@@ -647,32 +647,23 @@ const moon = new THREE.Mesh(
     displacementScale: 0.03,
     displacementBias: -0.015,
     emissive: "#9fb4dd",
-    emissiveIntensity: 0.45,
-    roughness: 0.85,
+    emissiveIntensity: 0.9,
+    roughness: 0.8,
     metalness: 0.02,
   }),
 );
 moon.position.set(12, 13, 18);
 scene.add(moon);
 
-const moonHalo = new THREE.Mesh(
-  new THREE.SphereGeometry(1.8, 24, 24),
-  new THREE.MeshBasicMaterial({
-    color: "#9bb5e6",
-    transparent: true,
-    opacity: 0.14,
-    side: THREE.BackSide,
-  }),
-);
-moon.add(moonHalo);
-
-const directionalLight = new THREE.DirectionalLight("#b5c7ee", 1.85);
+const directionalLight = new THREE.DirectionalLight("#b5c7ee", 2.35);
 directionalLight.position.copy(moon.position);
 scene.add(directionalLight);
 
-const moonFillLight = new THREE.PointLight("#87a8e8", 0.35, 55);
+const moonFillLight = new THREE.PointLight("#87a8e8", 0.52, 62);
 moonFillLight.position.copy(moon.position);
 scene.add(moonFillLight);
+
+gui.add(moonFillLight, "intensity").min(0).max(2).step(0.01).name("moon fill light intensity");
 
 const doorLight = new THREE.PointLight("#ff7d46", 1.2, 7);
 doorLight.position.set(0, 2.2, 2.7);
@@ -911,8 +902,7 @@ const tick = () => {
   // Sky animation
   stars.rotation.y = elapsedTime * 0.01;
   starsMaterial.opacity = 0.8 + Math.sin(elapsedTime * 0.8) * 0.1;
-  moon.material.emissiveIntensity = 0.52 + Math.sin(elapsedTime * 0.6) * 0.05;
-  moonHalo.material.opacity = 0.12 + Math.sin(elapsedTime * 0.6) * 0.03;
+  moon.material.emissiveIntensity = 0.74 + Math.sin(elapsedTime * 0.45) * 0.04;
 
   for (const sway of treeSwayData) {
     const swayTime = elapsedTime * sway.speed + sway.phase;

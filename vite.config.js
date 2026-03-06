@@ -10,7 +10,7 @@ export default {
     },
     build:
     {
-        outDir: 'dist', // Output in src/dist so hosting platforms detect it reliably
+        outDir: '../dist', // Output in the repository dist/ folder
         emptyOutDir: true, // Empty the folder first
         sourcemap: true // Add sourcemap
     },
