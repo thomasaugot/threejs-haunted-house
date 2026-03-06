@@ -1,6 +1,6 @@
 {
   "framework": "vite",
   "installCommand": "npm install --include=dev",
-  "buildCommand": "npm run build",
-  "outputDirectory": "src/dist"
+  "buildCommand": "npm run build && if [ -d dist ]; then mkdir -p src/dist && cp -R dist/. src/dist/; elif [ -d ../dist ]; then mkdir -p dist && cp -R ../dist/. dist/; fi",
+  "outputDirectory": "dist"
 }
