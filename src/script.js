@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { Timer } from "three/addons/misc/Timer.js";
 import GUI from "lil-gui";
 
@@ -15,11 +17,23 @@ const canvas = document.querySelector("canvas.webgl");
 // Scene
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#03040a");
-scene.fog = new THREE.FogExp2("#03040a", 0.04);
+const fogSettings = {
+  density: 0.052,
+  mistOpacity: 0.32,
+  mistSize: 2.2,
+};
+scene.fog = new THREE.FogExp2("#03040a", fogSettings.density);
 
 // textures
 
 const textureLoader = new THREE.TextureLoader();
+const assetBasePath = import.meta.env.BASE_URL;
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath(`${assetBasePath}draco/`);
+dracoLoader.setDecoderConfig({ type: "js" });
+dracoLoader.preload();
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
 
 /**
  * House
@@ -109,6 +123,9 @@ gui
   .max(0.5)
   .step(0.01)
   .name("floor displacement bias");
+gui.add(fogSettings, "density").min(0.03).max(0.16).step(0.001).name("fog density");
+gui.add(fogSettings, "mistOpacity").min(0.05).max(0.7).step(0.01).name("mist opacity");
+gui.add(fogSettings, "mistSize").min(0.8).max(4).step(0.05).name("mist size");
 
 // House container (contains all the house elements so we can move them together)
 const house = new THREE.Group();
@@ -212,27 +229,13 @@ door.geometry.setAttribute(
 door.position.y += 1;
 door.position.z += 2 + 0.01; // move the door slightly in front of the walls to prevent z-fighting
 
-const doorColorTexture = textureLoader.load(
-  "/textures/door/color.jpg",
-);
-const doorAoTexture = textureLoader.load(
-  "/textures/door/ambientOcclusion.jpg",
-);
-const doorRoughnessTexture = textureLoader.load(
-  "/textures/door/roughness.jpg",
-);
-const doorMetalnessTexture = textureLoader.load(
-  "/textures/door/metalness.jpg",
-);
-const doorHeightTexture = textureLoader.load(
-  "/textures/door/height.jpg",
-);
-const doorAlphaTexture = textureLoader.load(
-  "/textures/door/alpha.jpg",
-);
-const doorNormalTexture = textureLoader.load(
-  "/textures/door/normal.jpg",
-);
+const doorColorTexture = textureLoader.load("/textures/door/color.jpg");
+const doorAoTexture = textureLoader.load("/textures/door/ambientOcclusion.jpg");
+const doorRoughnessTexture = textureLoader.load("/textures/door/roughness.jpg");
+const doorMetalnessTexture = textureLoader.load("/textures/door/metalness.jpg");
+const doorHeightTexture = textureLoader.load("/textures/door/height.jpg");
+const doorAlphaTexture = textureLoader.load("/textures/door/alpha.jpg");
+const doorNormalTexture = textureLoader.load("/textures/door/normal.jpg");
 
 doorColorTexture.colorSpace = THREE.SRGBColorSpace;
 
@@ -324,27 +327,43 @@ const createWindowUnit = (x, y, z) => {
   group.add(bottomFrame);
 
   const leftFrame = new THREE.Mesh(
-    new THREE.BoxGeometry(frameThickness, windowHeight - frameThickness * 2, frameDepth),
+    new THREE.BoxGeometry(
+      frameThickness,
+      windowHeight - frameThickness * 2,
+      frameDepth,
+    ),
     windowFrameMaterial,
   );
   leftFrame.position.x = -windowWidth * 0.5 + frameThickness * 0.5;
   group.add(leftFrame);
 
   const rightFrame = new THREE.Mesh(
-    new THREE.BoxGeometry(frameThickness, windowHeight - frameThickness * 2, frameDepth),
+    new THREE.BoxGeometry(
+      frameThickness,
+      windowHeight - frameThickness * 2,
+      frameDepth,
+    ),
     windowFrameMaterial,
   );
   rightFrame.position.x = windowWidth * 0.5 - frameThickness * 0.5;
   group.add(rightFrame);
 
   const verticalMullion = new THREE.Mesh(
-    new THREE.BoxGeometry(0.04, windowHeight - frameThickness * 2, frameDepth * 0.8),
+    new THREE.BoxGeometry(
+      0.04,
+      windowHeight - frameThickness * 2,
+      frameDepth * 0.8,
+    ),
     windowFrameMaterial,
   );
   group.add(verticalMullion);
 
   const horizontalMullion = new THREE.Mesh(
-    new THREE.BoxGeometry(windowWidth - frameThickness * 2, 0.04, frameDepth * 0.8),
+    new THREE.BoxGeometry(
+      windowWidth - frameThickness * 2,
+      0.04,
+      frameDepth * 0.8,
+    ),
     windowFrameMaterial,
   );
   group.add(horizontalMullion);
@@ -393,7 +412,7 @@ bushMaterial.normalMap = bushNormalTexture;
 const bush1 = new THREE.Mesh(bushGeometry, bushMaterial);
 bush1.scale.set(0.5, 0.5, 0.5);
 bush1.position.set(0.8, 0.2, 2.2);
-bush1.rotation.x = - 0.75;
+bush1.rotation.x = -0.75;
 
 const bush2 = new THREE.Mesh(bushGeometry, bushMaterial);
 bush2.scale.set(0.25, 0.25, 0.25);
@@ -560,53 +579,106 @@ for (let i = 0; i < 30; i++) {
 const trees = new THREE.Group();
 scene.add(trees);
 
-const treeTrunkGeometry = new THREE.CylinderGeometry(0.07, 0.11, 1.1, 10);
-const treeFoliageGeometry = new THREE.ConeGeometry(0.54, 1.2, 12);
-const treeTrunkMaterial = new THREE.MeshStandardMaterial({
-  color: "#2a2018",
-  roughness: 0.94,
-  metalness: 0,
-});
-const treeFoliageMaterial = new THREE.MeshStandardMaterial({
-  color: "#1d3527",
-  roughness: 0.92,
-  metalness: 0,
-});
-
 const treeSwayData = [];
-
-const createTree = () => {
-  const tree = new THREE.Group();
-
-  const trunk = new THREE.Mesh(treeTrunkGeometry, treeTrunkMaterial);
-  trunk.position.y = 0.55;
-  tree.add(trunk);
-
-  const lowerFoliage = new THREE.Mesh(treeFoliageGeometry, treeFoliageMaterial);
-  lowerFoliage.position.y = 1.08;
-  lowerFoliage.scale.set(1, 0.95, 1);
-  tree.add(lowerFoliage);
-
-  const upperFoliage = new THREE.Mesh(treeFoliageGeometry, treeFoliageMaterial);
-  upperFoliage.position.y = 1.55;
-  upperFoliage.scale.set(0.72, 0.76, 0.72);
-  tree.add(upperFoliage);
-
-  return tree;
+let treesSpawned = false;
+const treePrefabs = {
+  jacaranda: null,
 };
 
-for (let i = 0; i < 24; i++) {
-  const angle = Math.random() * Math.PI * 2;
-  const radius = 10 + Math.random() * 12;
-  const x = Math.cos(angle) * radius;
-  const z = Math.sin(angle) * radius;
+const setupTreeModel = (modelRoot) => {
+  modelRoot.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) {
+      return;
+    }
 
-  const tree = createTree();
-  const scale = 0.72 + Math.random() * 0.6;
+    // Tree models are the heaviest objects in the scene; disable their shadows for performance.
+    child.castShadow = false;
+    child.receiveShadow = false;
 
+    if (Array.isArray(child.material)) {
+      for (const material of child.material) {
+        if (material.map) {
+          material.map.colorSpace = THREE.SRGBColorSpace;
+        }
+        if (material.alphaMap || /leaf/i.test(material.name)) {
+          material.alphaTest = 0.45;
+          material.side = THREE.DoubleSide;
+        }
+      }
+      return;
+    }
+
+    if (child.material?.map) {
+      child.material.map.colorSpace = THREE.SRGBColorSpace;
+    }
+    if (child.material?.alphaMap || /leaf/i.test(child.material?.name || "")) {
+      child.material.alphaTest = 0.45;
+      child.material.side = THREE.DoubleSide;
+    }
+  });
+};
+
+const normalizeTreePrefab = (modelRoot, targetHeight = 4.6) => {
+  modelRoot.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(modelRoot);
+  if (box.isEmpty()) {
+    return;
+  }
+
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const safeHeight = Math.max(size.y, 0.0001);
+  const scale = targetHeight / safeHeight;
+  modelRoot.scale.multiplyScalar(scale);
+
+  modelRoot.updateMatrixWorld(true);
+  const scaledBox = new THREE.Box3().setFromObject(modelRoot);
+  const center = new THREE.Vector3();
+  scaledBox.getCenter(center);
+
+  // Center on XZ and place the bottom at Y=0 so ground placement is predictable.
+  modelRoot.position.x -= center.x;
+  modelRoot.position.z -= center.z;
+  modelRoot.position.y -= scaledBox.min.y;
+};
+
+const spawnTreeRing = (
+  prefab,
+  count,
+  radiusMin,
+  radiusMax,
+  minScale,
+  maxScale,
+) => {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = radiusMin + Math.random() * (radiusMax - radiusMin);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const scale = minScale + Math.random() * (maxScale - minScale);
+
+    const tree = prefab.clone(true);
+    tree.position.set(x, getTerrainHeight(x, z), z);
+    tree.rotation.y = Math.random() * Math.PI * 2;
+    tree.scale.set(scale, scale * (0.92 + Math.random() * 0.14), scale);
+
+    trees.add(tree);
+    treeSwayData.push({
+      tree,
+      baseX: tree.rotation.x,
+      baseZ: tree.rotation.z,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.22 + Math.random() * 0.3,
+      amplitude: 0.003 + Math.random() * 0.004,
+    });
+  }
+};
+
+const spawnSingleTree = (prefab, x, z, scale) => {
+  const tree = prefab.clone(true);
   tree.position.set(x, getTerrainHeight(x, z), z);
-  tree.scale.setScalar(scale);
   tree.rotation.y = Math.random() * Math.PI * 2;
+  tree.scale.set(scale, scale * 0.98, scale);
 
   trees.add(tree);
   treeSwayData.push({
@@ -614,10 +686,69 @@ for (let i = 0; i < 24; i++) {
     baseX: tree.rotation.x,
     baseZ: tree.rotation.z,
     phase: Math.random() * Math.PI * 2,
-    speed: 0.55 + Math.random() * 0.6,
-    amplitude: 0.014 + Math.random() * 0.018,
+    speed: 0.24,
+    amplitude: 0.0035,
   });
-}
+};
+
+const clearHeroTrees = () => {
+  while (trees.children.length > 0) {
+    trees.remove(trees.children[0]);
+  }
+  treeSwayData.length = 0;
+};
+
+const heroTreePlacements = [
+  { x: -7.2, z: 4.8, scale: 0.24 },
+  { x: 7.6, z: -4.9, scale: 0.21 },
+];
+
+const tryPopulateTrees = (force = false) => {
+  if (!treePrefabs.jacaranda || (treesSpawned && !force)) {
+    return;
+  }
+
+  if (force) {
+    clearHeroTrees();
+  }
+
+  // Keep only two hero trees near the house.
+  spawnSingleTree(
+    treePrefabs.jacaranda,
+    heroTreePlacements[0].x,
+    heroTreePlacements[0].z,
+    heroTreePlacements[0].scale,
+  );
+  spawnSingleTree(
+    treePrefabs.jacaranda,
+    heroTreePlacements[1].x,
+    heroTreePlacements[1].z,
+    heroTreePlacements[1].scale,
+  );
+  treesSpawned = true;
+};
+
+gltfLoader.load(
+  `${assetBasePath}models/jacaranda_tree.glb`,
+  (gltf) => {
+    console.info("Jacaranda model loaded");
+    setupTreeModel(gltf.scene);
+    normalizeTreePrefab(gltf.scene, 4.8);
+    treePrefabs.jacaranda = gltf.scene;
+    tryPopulateTrees(true);
+  },
+  (event) => {
+    if (event.total > 0) {
+      const percent = Math.round((event.loaded / event.total) * 100);
+      if (percent === 100) {
+        console.info("Jacaranda model download complete");
+      }
+    }
+  },
+  (error) => {
+    console.error("Failed to load jacaranda tree model:", error);
+  },
+);
 
 /**
  * Lights
@@ -627,10 +758,16 @@ const ambientLight = new THREE.AmbientLight("#9cb0d8", 0.34);
 scene.add(ambientLight);
 
 // Moon + moonlight
-const moonColorTexture = textureLoader.load("/textures/moon/moon_01_diff_1k.jpg");
+const moonColorTexture = textureLoader.load(
+  "/textures/moon/moon_01_diff_1k.jpg",
+);
 const moonArmTexture = textureLoader.load("/textures/moon/moon_01_arm_1k.jpg");
-const moonNormalTexture = textureLoader.load("/textures/moon/moon_01_nor_gl_1k.jpg");
-const moonDisplacementTexture = textureLoader.load("/textures/moon/moon_01_disp_1k.jpg");
+const moonNormalTexture = textureLoader.load(
+  "/textures/moon/moon_01_nor_gl_1k.jpg",
+);
+const moonDisplacementTexture = textureLoader.load(
+  "/textures/moon/moon_01_disp_1k.jpg",
+);
 
 moonColorTexture.colorSpace = THREE.SRGBColorSpace;
 
@@ -646,7 +783,7 @@ const moon = new THREE.Mesh(
     displacementMap: moonDisplacementTexture,
     displacementScale: 0.03,
     displacementBias: -0.015,
-    emissive: "#9fb4dd",
+    emissive: "#ccd3e3",
     emissiveIntensity: 0.9,
     roughness: 0.8,
     metalness: 0.02,
@@ -655,15 +792,20 @@ const moon = new THREE.Mesh(
 moon.position.set(12, 13, 18);
 scene.add(moon);
 
-const directionalLight = new THREE.DirectionalLight("#b5c7ee", 2.35);
+const directionalLight = new THREE.DirectionalLight("#b5c7ee", 3.1);
 directionalLight.position.copy(moon.position);
 scene.add(directionalLight);
 
-const moonFillLight = new THREE.PointLight("#87a8e8", 0.52, 62);
+const moonFillLight = new THREE.PointLight("#87a8e8", 0.95, 72);
 moonFillLight.position.copy(moon.position);
 scene.add(moonFillLight);
 
-gui.add(moonFillLight, "intensity").min(0).max(2).step(0.01).name("moon fill light intensity");
+gui
+  .add(moonFillLight, "intensity")
+  .min(0)
+  .max(2)
+  .step(0.01)
+  .name("moon fill light intensity");
 
 const doorLight = new THREE.PointLight("#ff7d46", 1.2, 7);
 doorLight.position.set(0, 2.2, 2.7);
@@ -750,7 +892,7 @@ const createGhost = (color) => {
 
   scene.add(ghost);
 
-  return { ghost, bodyGroup };
+  return { ghost, bodyGroup, glow };
 };
 
 const ghost1 = createGhost("#d6deea");
@@ -789,6 +931,60 @@ const starsMaterial = new THREE.PointsMaterial({
 
 const stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
+
+// Low-lying animated mist for extra atmosphere around the house.
+const mistCanvas = document.createElement("canvas");
+mistCanvas.width = 128;
+mistCanvas.height = 128;
+const mistCtx = mistCanvas.getContext("2d");
+const mistGradient = mistCtx.createRadialGradient(64, 64, 8, 64, 64, 64);
+mistGradient.addColorStop(0, "rgba(235,245,255,0.72)");
+mistGradient.addColorStop(0.4, "rgba(190,210,245,0.36)");
+mistGradient.addColorStop(1, "rgba(140,165,215,0)");
+mistCtx.fillStyle = mistGradient;
+mistCtx.fillRect(0, 0, 128, 128);
+
+const mistTexture = new THREE.CanvasTexture(mistCanvas);
+const mistCount = 110;
+const mistPositions = new Float32Array(mistCount * 3);
+const mistData = [];
+
+for (let i = 0; i < mistCount; i++) {
+  const i3 = i * 3;
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 2.2 + Math.random() * 17;
+  const x = Math.cos(angle) * radius;
+  const z = Math.sin(angle) * radius;
+  const y = getTerrainHeight(x, z) + 0.15 + Math.random() * 0.7;
+
+  mistPositions[i3] = x;
+  mistPositions[i3 + 1] = y;
+  mistPositions[i3 + 2] = z;
+
+  mistData.push({
+    radius,
+    angle,
+    baseY: y,
+    speed: 0.015 + Math.random() * 0.03,
+    yJitter: 0.03 + Math.random() * 0.05,
+  });
+}
+
+const mistGeometry = new THREE.BufferGeometry();
+mistGeometry.setAttribute("position", new THREE.BufferAttribute(mistPositions, 3));
+
+const mistMaterial = new THREE.PointsMaterial({
+  map: mistTexture,
+  color: "#9aabc8",
+  size: fogSettings.mistSize,
+  sizeAttenuation: true,
+  transparent: true,
+  opacity: fogSettings.mistOpacity,
+  depthWrite: false,
+});
+
+const mist = new THREE.Points(mistGeometry, mistMaterial);
+scene.add(mist);
 
 /**
  * Sizes
@@ -839,6 +1035,39 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Shadow settings
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+directionalLight.castShadow = true;
+ghost1.ghost.castShadow = true;
+ghost2.ghost.castShadow = true;
+ghost3.ghost.castShadow = true;
+
+ghost1.glow.castShadow = true;
+ghost1.glow.shadow.mapSize.width = 256;
+ghost1.glow.shadow.mapSize.height = 256;
+ghost2.glow.castShadow = true;
+ghost2.glow.shadow.mapSize.width = 256;
+ghost2.glow.shadow.mapSize.height = 256;
+ghost3.glow.castShadow = true;
+ghost3.glow.shadow.mapSize.width = 256;
+ghost3.glow.shadow.mapSize.height = 256;
+
+house.traverse((child) => {
+  if (child instanceof THREE.Mesh) {
+    child.castShadow = true;
+    child.receiveShadow = true;
+  }
+});
+
+graves.traverse((child) => {
+  if (child instanceof THREE.Mesh) {
+    child.castShadow = true;
+    child.receiveShadow = true;
+  }
+});
 
 // Sharpen textures when seen at grazing angles (e.g. roof from camera perspective).
 const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -902,12 +1131,28 @@ const tick = () => {
   // Sky animation
   stars.rotation.y = elapsedTime * 0.01;
   starsMaterial.opacity = 0.8 + Math.sin(elapsedTime * 0.8) * 0.1;
-  moon.material.emissiveIntensity = 0.74 + Math.sin(elapsedTime * 0.45) * 0.04;
+  moon.material.emissiveIntensity = 1.05 + Math.sin(elapsedTime * 0.45) * 0.07;
+  scene.fog.density = fogSettings.density;
+  mistMaterial.opacity = fogSettings.mistOpacity;
+  mistMaterial.size = fogSettings.mistSize;
+
+  const mistPositionArray = mistGeometry.attributes.position.array;
+  for (let i = 0; i < mistCount; i++) {
+    const i3 = i * 3;
+    const particle = mistData[i];
+    const currentAngle = particle.angle + elapsedTime * particle.speed;
+    mistPositionArray[i3] = Math.cos(currentAngle) * particle.radius;
+    mistPositionArray[i3 + 2] = Math.sin(currentAngle) * particle.radius;
+    mistPositionArray[i3 + 1] =
+      particle.baseY + Math.sin(elapsedTime * 0.7 + i * 0.37) * particle.yJitter;
+  }
+  mistGeometry.attributes.position.needsUpdate = true;
 
   for (const sway of treeSwayData) {
     const swayTime = elapsedTime * sway.speed + sway.phase;
     sway.tree.rotation.x = sway.baseX + Math.sin(swayTime) * sway.amplitude;
-    sway.tree.rotation.z = sway.baseZ + Math.cos(swayTime * 0.85) * sway.amplitude * 0.7;
+    sway.tree.rotation.z =
+      sway.baseZ + Math.cos(swayTime * 0.85) * sway.amplitude * 0.7;
   }
 
   // Update controls
